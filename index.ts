@@ -90,27 +90,30 @@ async function run() {
         // make an api who returns clinic's data according to userEmail
 
         app.get("/clinic", async (req, res) => {
+            console.log("i trigger")
+
             const userEmail = req.query
             const result = await clinicsCollection.findOne(userEmail)
             res.send(result)
         })
         app.get("/clinics", async (req, res) => {
-            const { status, name } = req.query as Record<string, string>
-            // type Query = {
-            //     status?: string;
-            //     name?:string
-            // }
-            let query: any = {} // 
-            if (status) {
-                query.status = status
-            }
-            if (name) {
-                query = { $regex: name, $options: "i" }
-            }
-            const result = await clinicsCollection.find(query).toArray()
-            res.send(result)
-        })
+            // console.log("i trigger")
+            const { status, name } = req.query as Record<string, string>;
 
+            const query: Record<string, any> = {};
+
+            if (status) {
+                query.status = status;
+            }
+
+            if (name) {
+                query.name = { $regex: name, $options: "i" };
+            }
+            // console.log(query)
+
+            const result = await clinicsCollection.find(query).toArray();
+            res.send(result);
+        });
 
         //
         app.patch("/clinic", async (req, res) => {
