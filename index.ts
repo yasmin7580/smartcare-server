@@ -109,22 +109,24 @@ async function run() {
 
         // make an api who returns clinic's data according to userEmail
 
-        app.get("/clinic/:id", async (req, res) => {
+        app.get("/clinic", async (req, res) => {
             type Query = {
-                _id?: string | mongodb.ObjectId
                 userEmail?: string
             }
-            const userEmail = req.query
-            const { id } = req.params
-            let query: Query = {}
-            if (id) {
-                query = { _id: new mongodb.ObjectId(id) }
-            }
+            const { userEmail } = req.query as Record<string, string>
+            const query: Query = {}
             if (userEmail) {
-                query = userEmail
+                query.userEmail = userEmail
             }
 
-            const result = await clinicsCollection.findOne(userEmail)
+            const result = await clinicsCollection.findOne(query)
+            res.send(result)
+        })
+
+        app.get("/clinic/:id", async (req, res) => {
+            const { id } = req.params
+            const query = { _id: new mongodb.ObjectId(id) }
+            const result = await clinicsCollection.findOne(query)
             res.send(result)
         })
         app.get("/clinics", async (req, res) => {
@@ -173,6 +175,43 @@ async function run() {
                 projection: { _id: 0, role: 1 }
             }
             const result = await usersCollection.findOne(email, options)
+            res.send(result)
+        })
+
+        app.get("/adminHome", async (req, res) => {
+            const totalUsers = await usersCollection.countDocuments()
+            const totalClinics = await clinicsCollection.countDocuments()
+            const totalDoctors = await doctorsCollection.countDocuments()
+            const totalAppointments = await appointmentCollection.countDocuments()
+
+            const totalNormalUsers = await usersCollection.countDocuments({ role: "user" })
+            const totalAuthorities = await usersCollection.countDocuments({ role: "authority" })
+            const totalAdmins = await usersCollection.countDocuments({ role: "admin" })
+
+            const verifiedClinics = await clinicsCollection.countDocuments({ status: "VERIFIED" })
+            const pendingClinics = await clinicsCollection.countDocuments({ status: "pending" })
+
+            const scheduledAppointments = await appointmentCollection.countDocuments({ status: "scheduled" })
+            const cancelAppointments = await appointmentCollection.countDocuments({ status: "cancel" })
+
+            const recentAppointments = await appointmentCollection.find().sort({ appointmentDate: 1 }).limit(5).toArray()
+            const pendingClinicsData = await clinicsCollection.find({ status: "pending" }).toArray()
+
+            const result = {
+                totalUsers,
+                totalClinics,
+                totalDoctors,
+                totalAppointments,
+                totalNormalUsers,
+                totalAuthorities,
+                totalAdmins,
+                verifiedClinics,
+                pendingClinics,
+                scheduledAppointments,
+                cancelAppointments,
+                recentAppointments,
+                pendingClinicsData
+            }
             res.send(result)
         })
 
@@ -233,10 +272,11 @@ async function run() {
 
         // appointment apis
         app.get('/appointment', async (req, res) => {
-            const { userEmail, status } = req.query as Record<string, string>
+            const { userEmail, status, clinicId } = req.query as Record<string, string>
             type Query = {
                 userEmail?: string;
                 status?: string
+                clinicId?: string
             }
             let query: Query = {}
             if (userEmail) {
@@ -244,6 +284,9 @@ async function run() {
             }
             if (status) {
                 query.status = status
+            }
+            if (clinicId) {
+                query.clinicId = clinicId
             }
             const result = await appointmentCollection.find(query).toArray()
             res.send(result)
