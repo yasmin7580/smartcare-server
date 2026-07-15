@@ -1,12 +1,15 @@
 import ObjectId = require("mongodb");
 import mongodb = require("mongodb");
+import type { NextFunction, Request, Response } from "express";
 const dns = require('dns');
 
 require("dotenv").config();
+    
 const cors = require("cors")
 // import type { Request, Response } from "express";
 
 dns.setServers(["8.8.8.8", "1.1.1.1"])
+
 
 const express = require("express") as typeof import("express");
 const { MongoClient, ServerApiVersion } = require("mongodb") as typeof import("mongodb");
@@ -36,13 +39,32 @@ const client = uri
 
 
 
-// const admin = require("firebase-admin") as typeof import("firebase-admin");
+const admin = require("firebase-admin");
 
-// const serviceAccount = require("./serviceAccountKey.json") as import("firebase-admin").ServiceAccount;
-// admin.initializeApp({
+// const serviceAccount = require("./firebaseServiceKey") as import("firebase-admin").ServiceAccount;
+// if (!admin.apps.length) {
+//     admin.initializeApp({
+//         credential: admin.credential.cert(serviceAccount)
+//     });
+// }
 
-//     credential: admin.credential.cert(serviceAccount)
-// });
+// const verifyFirebaseToken = async (req: Request, res: Response, next: NextFunction) => {
+//     const authHeader = req.headers.authorization
+//     const token = authHeader?.startsWith("Bearer ") ? authHeader.split(" ")[1] : authHeader
+
+//     if (!token) {
+//         return res.status(401).send({ message: "Unauthorized access" })
+//     }
+
+//     try {
+//         const decoded = await admin.auth().verifyIdToken(token)
+//         ; (req as any).decoded = decoded
+//         next()
+//     }
+//     catch (error) {
+//         res.status(403).send({ message: "Forbidden access" })
+//     }
+// }
 
 
 async function run() {

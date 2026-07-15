@@ -27,11 +27,28 @@ const client = uri
         },
     })
     : null;
-// const admin = require("firebase-admin") as typeof import("firebase-admin");
-// const serviceAccount = require("./serviceAccountKey.json") as import("firebase-admin").ServiceAccount;
-// admin.initializeApp({
-//     credential: admin.credential.cert(serviceAccount)
-// });
+const admin = require("firebase-admin");
+const serviceAccount = require("./firebaseServiceKey");
+if (!admin.apps.length) {
+    admin.initializeApp({
+        credential: admin.credential.cert(serviceAccount)
+    });
+}
+const verifyFirebaseToken = async (req, res, next) => {
+    const authHeader = req.headers.authorization;
+    const token = authHeader?.startsWith("Bearer ") ? authHeader.split(" ")[1] : authHeader;
+    if (!token) {
+        return res.status(401).send({ message: "Unauthorized access" });
+    }
+    try {
+        const decoded = await admin.auth().verifyIdToken(token);
+        req.decoded = decoded;
+        next();
+    }
+    catch (error) {
+        res.status(403).send({ message: "Forbidden access" });
+    }
+};
 async function run() {
     if (!client) {
         console.warn("MONGO_DB_URI is missing. Server will run without MongoDB.");
