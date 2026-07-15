@@ -1,9 +1,12 @@
 import ObjectId = require("mongodb");
 import mongodb = require("mongodb");
+const dns = require('dns');
 
 require("dotenv").config();
 const cors = require("cors")
 // import type { Request, Response } from "express";
+
+dns.setServers(["8.8.8.8", "1.1.1.1"])
 
 const express = require("express") as typeof import("express");
 const { MongoClient, ServerApiVersion } = require("mongodb") as typeof import("mongodb");
@@ -16,7 +19,7 @@ const PORT = 8000
 
 app.get("/", (_req, res) => {
     console.log
-    res.send(process.env.MONGO_DB_URI);
+    res.send('hello');
 });
 
 const uri = process.env.MONGODB_URI;
@@ -54,13 +57,18 @@ async function run() {
         const usersCollection = db.collection('Users')
         const clinicsCollection = db.collection('Clinics')
         const doctorsCollection = db.collection('Doctors')
+        const appointmentCollection = db.collection('Appointments')
 
         // user api
 
+        app.get("/user", async (req, res) => {
+            const email = req.query
+            const result = await usersCollection.findOne(email)
+            res.send(result)
+        })
         app.get("/users", async (req, res) => {
             const result = await usersCollection.find().toArray()
             res.send(result)
-
         })
 
         app.patch("/user", async (req, res) => {
@@ -76,6 +84,18 @@ async function run() {
             res.send(result)
 
         })
+        app.patch("/userUpdate", async (req, res) => {
+            const email = req.query
+            const data = req.body
+            const query = email
+            const update = {
+                $set: data
+            }
+            // console.log(data)
+            // console.log(data)
+            const result = await usersCollection.updateOne(query, update)
+            res.send(result)
+        })
 
         app.post("/user", async (req, res) => {
             const data = req.body
@@ -89,10 +109,21 @@ async function run() {
 
         // make an api who returns clinic's data according to userEmail
 
-        app.get("/clinic", async (req, res) => {
-            console.log("i trigger")
-
+        app.get("/clinic/:id", async (req, res) => {
+            type Query = {
+                _id?: string | mongodb.ObjectId
+                userEmail?: string
+            }
             const userEmail = req.query
+            const { id } = req.params
+            let query: Query = {}
+            if (id) {
+                query = { _id: new mongodb.ObjectId(id) }
+            }
+            if (userEmail) {
+                query = userEmail
+            }
+
             const result = await clinicsCollection.findOne(userEmail)
             res.send(result)
         })
@@ -152,9 +183,19 @@ async function run() {
 
         // Doctors api 
 
+        app.get("/doctor/:id", async (req, res) => {
+            const { id } = req.params
+            let query = { _id: new mongodb.ObjectId(id) }
+            const result = await doctorsCollection.findOne(query)
+            res.send(result)
+        })
+
         app.get("/doctors", async (req, res) => {
             const { id } = req.query as Record<string, string>
-            const query = { clinicId: id }
+            let query = {}
+            if (id) {
+                query = { clinicId: id }
+            }
             const result = await doctorsCollection.find(query).toArray()
             res.send(result)
         })
@@ -188,6 +229,38 @@ async function run() {
             res.send(result)
 
 
+        })
+
+        // appointment apis
+        app.get('/appointment', async (req, res) => {
+            const { userEmail, status } = req.query as Record<string, string>
+            type Query = {
+                userEmail?: string;
+                status?: string
+            }
+            let query: Query = {}
+            if (userEmail) {
+                query = { userEmail }
+            }
+            if (status) {
+                query.status = status
+            }
+            const result = await appointmentCollection.find(query).toArray()
+            res.send(result)
+        })
+        app.patch("/appointment", async (req, res) => {
+            const { id, status } = req.query as Record<string, string>
+            const query = { _id: new mongodb.ObjectId(id) }
+            const update = {
+                $set: { status }
+            }
+            const result = await appointmentCollection.updateOne(query, update)
+            res.send(result)
+        })
+        app.post("/appointment", async (req, res) => {
+            const data = req.body
+            const result = await appointmentCollection.insertOne(data)
+            res.send(result)
         })
 
 
