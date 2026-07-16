@@ -28,27 +28,37 @@ const client = uri
     })
     : null;
 const admin = require("firebase-admin");
-// const serviceAccount = require("./firebaseServiceKey") as import("firebase-admin").ServiceAccount;
-// if (!admin.apps.length) {
-//     admin.initializeApp({
-//         credential: admin.credential.cert(serviceAccount)
-//     });
-// }
-// const verifyFirebaseToken = async (req: Request, res: Response, next: NextFunction) => {
-//     const authHeader = req.headers.authorization
-//     const token = authHeader?.startsWith("Bearer ") ? authHeader.split(" ")[1] : authHeader
-//     if (!token) {
-//         return res.status(401).send({ message: "Unauthorized access" })
-//     }
-//     try {
-//         const decoded = await admin.auth().verifyIdToken(token)
-//         ; (req as any).decoded = decoded
-//         next()
-//     }
-//     catch (error) {
-//         res.status(403).send({ message: "Forbidden access" })
-//     }
-// }
+const firebaseKey = process.env.FIREBASE_KEY;
+if (!firebaseKey) {
+    throw new Error("FIREBASE_KEY is required to initialize Firebase Admin.");
+}
+let serviceAccount;
+try {
+    serviceAccount = JSON.parse(Buffer.from(firebaseKey, "base64").toString("utf8"));
+}
+catch {
+    throw new Error("FIREBASE_KEY must be a base64-encoded UTF-8 Firebase service-account JSON value.");
+}
+if (!admin?.apps?.length) {
+    admin.initializeApp({
+        credential: admin?.credential?.cert(serviceAccount)
+    });
+}
+const verifyFirebaseToken = async (req, res, next) => {
+    const authHeader = req.headers.authorization;
+    const token = authHeader?.startsWith("Bearer ") ? authHeader.split(" ")[1] : authHeader;
+    if (!token) {
+        return res.status(401).send({ message: "Unauthorized access" });
+    }
+    try {
+        const decoded = await admin.auth().verifyIdToken(token);
+        req.decoded = decoded;
+        next();
+    }
+    catch (error) {
+        res.status(403).send({ message: "Forbidden access" });
+    }
+};
 async function run() {
     if (!client) {
         console.warn("MONGO_DB_URI is missing. Server will run without MongoDB.");
@@ -205,6 +215,44 @@ async function run() {
                 completeAppointments,
                 clinics,
                 doctors
+            };
+            res.send(result);
+        });
+        app.get("/authorityHome", async (req, res) => {
+            console.log("calling");
+            const { email } = req.query;
+            const clinic = await clinicsCollection.findOne({ userEmail: email });
+            // console.log(clinic)
+            if (!clinic) {
+                res.send({
+                    clinic: null,
+                    totalDoctors: 0,
+                    totalAppointments: 0,
+                    scheduledAppointments: 0,
+                    completeAppointments: 0,
+                    cancelAppointments: 0,
+                    doctors: [],
+                    recentAppointments: []
+                });
+                return;
+            }
+            const clinicId = clinic._id.toString();
+            const totalDoctors = await doctorsCollection.countDocuments({ clinicId });
+            const totalAppointments = await appointmentCollection.countDocuments({ clinicId });
+            const scheduledAppointments = await appointmentCollection.countDocuments({ clinicId, status: "scheduled" });
+            const completeAppointments = await appointmentCollection.countDocuments({ clinicId, status: "complete" });
+            const cancelAppointments = await appointmentCollection.countDocuments({ clinicId, status: "cancel" });
+            const doctors = await doctorsCollection.find({ clinicId }).limit(5).toArray();
+            const recentAppointments = await appointmentCollection.find({ clinicId }).sort({ appointmentDate: 1 }).limit(5).toArray();
+            const result = {
+                clinic,
+                totalDoctors,
+                totalAppointments,
+                scheduledAppointments,
+                completeAppointments,
+                cancelAppointments,
+                doctors,
+                recentAppointments
             };
             res.send(result);
         });

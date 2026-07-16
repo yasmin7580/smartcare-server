@@ -41,7 +41,20 @@ const client = uri
 
 // const admin = require("firebase-admin");
 
-// const serviceAccount = require("./firebaseServiceKey.json") as import("firebase-admin").ServiceAccount;
+// const firebaseKey = process.env.FIREBASE_KEY;
+
+// if (!firebaseKey) {
+//     throw new Error("FIREBASE_KEY is required to initialize Firebase Admin.");
+// }
+
+// let serviceAccount: import("firebase-admin").ServiceAccount;
+// try {
+//     serviceAccount = JSON.parse(Buffer.from(firebaseKey, "base64").toString("utf8"));
+// }
+// catch {
+//     throw new Error("FIREBASE_KEY must be a base64-encoded UTF-8 Firebase service-account JSON value.");
+// }
+
 // if (!admin?.apps?.length) {
 //     admin.initializeApp({
 //         credential: admin?.credential?.cert(serviceAccount)
@@ -265,8 +278,10 @@ async function run() {
         })
 
         app.get("/authorityHome", async (req, res) => {
+            console.log("calling")
             const { email } = req.query as Record<string, string>
             const clinic = await clinicsCollection.findOne({ userEmail: email })
+            // console.log(clinic)
 
             if (!clinic) {
                 res.send({
