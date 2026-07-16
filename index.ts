@@ -1,14 +1,14 @@
 import ObjectId = require("mongodb");
 import mongodb = require("mongodb");
 import type { NextFunction, Request, Response } from "express";
-const dns = require('dns');
+// const dns = require('dns');
 
 require("dotenv").config();
 
 const cors = require("cors")
 // import type { Request, Response } from "express";
 
-dns.setServers(["8.8.8.8", "1.1.1.1"])
+// dns.setServers(["8.8.8.8", "1.1.1.1"])
 
 
 const express = require("express") as typeof import("express");
