@@ -28,27 +28,27 @@ const client = uri
     })
     : null;
 const admin = require("firebase-admin");
-const serviceAccount = require("./firebaseServiceKey");
-if (!admin.apps.length) {
-    admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount)
-    });
-}
-const verifyFirebaseToken = async (req, res, next) => {
-    const authHeader = req.headers.authorization;
-    const token = authHeader?.startsWith("Bearer ") ? authHeader.split(" ")[1] : authHeader;
-    if (!token) {
-        return res.status(401).send({ message: "Unauthorized access" });
-    }
-    try {
-        const decoded = await admin.auth().verifyIdToken(token);
-        req.decoded = decoded;
-        next();
-    }
-    catch (error) {
-        res.status(403).send({ message: "Forbidden access" });
-    }
-};
+// const serviceAccount = require("./firebaseServiceKey") as import("firebase-admin").ServiceAccount;
+// if (!admin.apps.length) {
+//     admin.initializeApp({
+//         credential: admin.credential.cert(serviceAccount)
+//     });
+// }
+// const verifyFirebaseToken = async (req: Request, res: Response, next: NextFunction) => {
+//     const authHeader = req.headers.authorization
+//     const token = authHeader?.startsWith("Bearer ") ? authHeader.split(" ")[1] : authHeader
+//     if (!token) {
+//         return res.status(401).send({ message: "Unauthorized access" })
+//     }
+//     try {
+//         const decoded = await admin.auth().verifyIdToken(token)
+//         ; (req as any).decoded = decoded
+//         next()
+//     }
+//     catch (error) {
+//         res.status(403).send({ message: "Forbidden access" })
+//     }
+// }
 async function run() {
     if (!client) {
         console.warn("MONGO_DB_URI is missing. Server will run without MongoDB.");
@@ -182,6 +182,29 @@ async function run() {
                 cancelAppointments,
                 recentAppointments,
                 pendingClinicsData
+            };
+            res.send(result);
+        });
+        app.get("/homeData", async (req, res) => {
+            const totalUsers = await usersCollection.countDocuments();
+            const totalClinics = await clinicsCollection.countDocuments({ status: "VERIFIED" });
+            const totalDoctors = await doctorsCollection.countDocuments();
+            const totalAppointments = await appointmentCollection.countDocuments();
+            const scheduledAppointments = await appointmentCollection.countDocuments({ status: "scheduled" });
+            const cancelAppointments = await appointmentCollection.countDocuments({ status: "cancel" });
+            const completeAppointments = await appointmentCollection.countDocuments({ status: "complete" });
+            const clinics = await clinicsCollection.find({ status: "VERIFIED" }).limit(3).toArray();
+            const doctors = await doctorsCollection.find().limit(3).toArray();
+            const result = {
+                totalUsers,
+                totalClinics,
+                totalDoctors,
+                totalAppointments,
+                scheduledAppointments,
+                cancelAppointments,
+                completeAppointments,
+                clinics,
+                doctors
             };
             res.send(result);
         });

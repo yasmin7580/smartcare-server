@@ -4,7 +4,7 @@ import type { NextFunction, Request, Response } from "express";
 const dns = require('dns');
 
 require("dotenv").config();
-    
+
 const cors = require("cors")
 // import type { Request, Response } from "express";
 
@@ -39,12 +39,12 @@ const client = uri
 
 
 
-const admin = require("firebase-admin");
+// const admin = require("firebase-admin");
 
-// const serviceAccount = require("./firebaseServiceKey") as import("firebase-admin").ServiceAccount;
-// if (!admin.apps.length) {
+// const serviceAccount = require("./firebaseServiceKey.json") as import("firebase-admin").ServiceAccount;
+// if (!admin?.apps?.length) {
 //     admin.initializeApp({
-//         credential: admin.credential.cert(serviceAccount)
+//         credential: admin?.credential?.cert(serviceAccount)
 //     });
 // }
 
@@ -58,7 +58,7 @@ const admin = require("firebase-admin");
 
 //     try {
 //         const decoded = await admin.auth().verifyIdToken(token)
-//         ; (req as any).decoded = decoded
+//             ; (req as any).decoded = decoded
 //         next()
 //     }
 //     catch (error) {
@@ -191,7 +191,7 @@ async function run() {
 
         })
         // SPECIAL API
-        app.get("/role", async (req, res) => { // we are searching for role. if we(client side) had role. no need to search for role
+        app.get("/role",  async (req, res) => { // we are searching for role. if we(client side) had role. no need to search for role
             const email = req.query
             const options = {
                 projection: { _id: 0, role: 1 }
@@ -233,6 +233,74 @@ async function run() {
                 cancelAppointments,
                 recentAppointments,
                 pendingClinicsData
+            }
+            res.send(result)
+        })
+
+        app.get("/homeData", async (req, res) => {
+            const totalUsers = await usersCollection.countDocuments()
+            const totalClinics = await clinicsCollection.countDocuments({ status: "VERIFIED" })
+            const totalDoctors = await doctorsCollection.countDocuments()
+            const totalAppointments = await appointmentCollection.countDocuments()
+
+            const scheduledAppointments = await appointmentCollection.countDocuments({ status: "scheduled" })
+            const cancelAppointments = await appointmentCollection.countDocuments({ status: "cancel" })
+            const completeAppointments = await appointmentCollection.countDocuments({ status: "complete" })
+
+            const clinics = await clinicsCollection.find({ status: "VERIFIED" }).limit(3).toArray()
+            const doctors = await doctorsCollection.find().limit(3).toArray()
+
+            const result = {
+                totalUsers,
+                totalClinics,
+                totalDoctors,
+                totalAppointments,
+                scheduledAppointments,
+                cancelAppointments,
+                completeAppointments,
+                clinics,
+                doctors
+            }
+            res.send(result)
+        })
+
+        app.get("/authorityHome", async (req, res) => {
+            const { email } = req.query as Record<string, string>
+            const clinic = await clinicsCollection.findOne({ userEmail: email })
+
+            if (!clinic) {
+                res.send({
+                    clinic: null,
+                    totalDoctors: 0,
+                    totalAppointments: 0,
+                    scheduledAppointments: 0,
+                    completeAppointments: 0,
+                    cancelAppointments: 0,
+                    doctors: [],
+                    recentAppointments: []
+                })
+                return
+            }
+
+            const clinicId = clinic._id.toString()
+            const totalDoctors = await doctorsCollection.countDocuments({ clinicId })
+            const totalAppointments = await appointmentCollection.countDocuments({ clinicId })
+            const scheduledAppointments = await appointmentCollection.countDocuments({ clinicId, status: "scheduled" })
+            const completeAppointments = await appointmentCollection.countDocuments({ clinicId, status: "complete" })
+            const cancelAppointments = await appointmentCollection.countDocuments({ clinicId, status: "cancel" })
+
+            const doctors = await doctorsCollection.find({ clinicId }).limit(5).toArray()
+            const recentAppointments = await appointmentCollection.find({ clinicId }).sort({ appointmentDate: 1 }).limit(5).toArray()
+
+            const result = {
+                clinic,
+                totalDoctors,
+                totalAppointments,
+                scheduledAppointments,
+                completeAppointments,
+                cancelAppointments,
+                doctors,
+                recentAppointments
             }
             res.send(result)
         })
